@@ -1,1 +1,666 @@
 
+```html
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini - Universal AI Chat Interface</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gemini: {
+                            50: '#f0f4f9',
+                            100: '#d3e3fd',
+                            200: '#a8c7fa',
+                            300: '#7cacfc',
+                            400: '#4b89dc',
+                            500: '#1a73e8',
+                            600: '#1557b0',
+                            700: '#0b3d91',
+                            800: '#072b66',
+                            900: '#04183b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <style>
+        /* Custom scrollbar and sleek styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 150, 150, 0.5);
+        }
+        .message-content pre {
+            background-color: #1e1e1e !important;
+            color: #dcdcdc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            overflow-x: auto;
+        }
+        .message-content code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
+        }
+        .message-content p {
+            margin-bottom: 0.75rem;
+        }
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+        .message-content ul, .message-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .message-content ul { list-style-type: disc; }
+        .message-content ol { list-style-type: decimal; }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-[#f8f9fa] dark:bg-[#131314] text-gray-900 dark:text-gray-100 h-screen flex overflow-hidden font-sans select-none">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 bg-[#f0f4f9] dark:bg-[#1e1f20] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <!-- Sidebar Header -->
+        <div class="p-4 flex items-center justify-between">
+            <button onclick="toggleSidebar()" class="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-[#333537] text-gray-700 dark:text-gray-300 transition" title="Close Sidebar">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <button onclick="createNewChat()" class="flex items-center gap-2 bg-[#d3e3fd] dark:bg-[#004a77] text-[#04183b] dark:text-[#d3e3fd] hover:bg-opacity-80 px-4 py-2.5 rounded-full font-medium text-sm transition shadow-sm">
+                <i class="fa-solid fa-plus"></i>
+                <span>New chat</span>
+            </button>
+        </div>
+
+        <!-- Chat History List -->
+        <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1" id="chat-history-list">
+            <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 px-3 py-2 uppercase tracking-wider">Recent Chats</div>
+            <!-- Dynamic history items will load here -->
+        </div>
+
+        <!-- Sidebar Footer / Settings Button -->
+        <div class="p-3 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2">
+            <button onclick="openSettings()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333537] text-gray-700 dark:text-gray-300 text-sm font-medium transition">
+                <i class="fa-solid fa-gear text-base text-gray-500 dark:text-gray-400"></i>
+                <span>Settings & API Key</span>
+            </button>
+            <div class="flex items-center justify-between px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>Theme Mode</span>
+                <button onclick="toggleTheme()" class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-[#333537] transition">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full md:pl-72 transition-all relative">
+        <!-- Top Navbar -->
+        <header class="h-16 px-4 flex items-center justify-between border-b border-transparent dark:border-gray-800 z-10 bg-inherit">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-[#333537] text-gray-700 dark:text-gray-300 transition" title="Toggle Sidebar">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold text-lg bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Gemini</span>
+                    <span id="current-model-badge" class="text-xs bg-gray-200 dark:bg-[#282a2c] text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded-full font-mono border border-gray-300 dark:border-gray-700">google/gemini-2.5-flash</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="exportCurrentChat()" class="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-[#333537] text-gray-700 dark:text-gray-300 transition" title="Export Chat Markdown">
+                    <i class="fa-solid fa-download text-base"></i>
+                </button>
+                <button onclick="openSettings()" class="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-[#333537] text-gray-700 dark:text-gray-300 transition" title="Settings">
+                    <i class="fa-solid fa-gear text-base"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat Container / Messages Stream -->
+        <div id="chat-container" class="flex-1 overflow-y-auto px-4 md:px-24 lg:px-48 py-6 space-y-6">
+            <!-- Welcome / Empty State (Shown when no messages or new chat) -->
+            <div id="welcome-state" class="flex flex-col items-center justify-center h-full max-w-2xl mx-auto text-center space-y-6 py-12">
+                <div class="space-y-2">
+                    <h1 class="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-[#4b89dc] via-[#9333ea] to-[#db2777] bg-clip-text text-transparent">Hello, Human</h1>
+                    <p class="text-xl md:text-2xl text-gray-500 dark:text-gray-400 font-medium">How can I help you today?</p>
+                </div>
+                
+                <!-- Prompt Suggestion Cards Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full pt-4">
+                    <button onclick="sendPresetPrompt('Design a stunning landing page hero section using Tailwind CSS')" class="p-4 rounded-xl bg-gray-100 dark:bg-[#1e1f20] hover:bg-gray-200 dark:hover:bg-[#282a2c] text-left transition flex flex-col justify-between h-28 border border-gray-200 dark:border-gray-800">
+                        <span class="text-sm font-medium text-gray-800 dark:text-gray-200">Design a stunning landing page hero section</span>
+                        <i class="fa-solid fa-code text-blue-500 self-end text-lg"></i>
+                    </button>
+                    <button onclick="sendPresetPrompt('Explain quantum computing in simple terms for a 10-year-old')" class="p-4 rounded-xl bg-gray-100 dark:bg-[#1e1f20] hover:bg-gray-200 dark:hover:bg-[#282a2c] text-left transition flex flex-col justify-between h-28 border border-gray-200 dark:border-gray-800">
+                        <span class="text-sm font-medium text-gray-800 dark:text-gray-200">Explain quantum computing simply</span>
+                        <i class="fa-solid fa-lightbulb text-yellow-500 self-end text-lg"></i>
+                    </button>
+                    <button onclick="sendPresetPrompt('Write a Python script to scrape a website and parse tabular data')" class="p-4 rounded-xl bg-gray-100 dark:bg-[#1e1f20] hover:bg-gray-200 dark:hover:bg-[#282a2c] text-left transition flex flex-col justify-between h-28 border border-gray-200 dark:border-gray-800">
+                        <span class="text-sm font-medium text-gray-800 dark:text-gray-200">Write a Python web scraping script</span>
+                        <i class="fa-solid fa-terminal text-green-500 self-end text-lg"></i>
+                    </button>
+                    <button onclick="sendPresetPrompt('Give me a 3-day travel itinerary for Tokyo with hidden gems')" class="p-4 rounded-xl bg-gray-100 dark:bg-[#1e1f20] hover:bg-gray-200 dark:hover:bg-[#282a2c] text-left transition flex flex-col justify-between h-28 border border-gray-200 dark:border-gray-800">
+                        <span class="text-sm font-medium text-gray-800 dark:text-gray-200">Plan a 3-day Tokyo travel itinerary</span>
+                        <i class="fa-solid fa-plane text-pink-500 self-end text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages will be appended here -->
+            <div id="messages-list" class="space-y-6 max-w-4xl mx-auto w-full hidden"></div>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <div class="px-4 md:px-24 lg:px-48 pb-6 pt-2">
+            <div class="max-w-4xl mx-auto bg-gray-100 dark:bg-[#1e1f20] rounded-3xl border border-gray-300 dark:border-gray-700 focus-within:border-gray-400 dark:focus-within:border-gray-500 shadow-sm transition flex flex-col p-3">
+                <textarea id="user-input" rows="1" placeholder="Enter a prompt here..." class="w-full bg-transparent resize-none outline-none px-3 py-1.5 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 max-h-40" oninput="autoResizeTextarea(this)" onkeydown="handleKeyDown(event)"></textarea>
+                
+                <div class="flex items-center justify-between pt-2 px-1">
+                    <div class="flex items-center gap-2">
+                        <button onclick="clearCurrentChatInput()" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition text-sm" title="Clear input">
+                            <i class="fa-solid fa-paperclip"></i>
+                        </button>
+                        <span id="api-status-indicator" class="text-xs text-gray-400 flex items-center gap-1.5 font-medium">
+                            <span class="w-2 h-2 rounded-full bg-green-500" id="status-dot"></span>
+                            <span id="status-text">OpenRouter Ready</span>
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="send-btn" onclick="sendMessage()" class="bg-gray-800 dark:bg-white text-white dark:text-gray-900 p-2.5 rounded-full hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed w-10 h-10 flex items-center justify-center shadow-md">
+                            <i class="fa-solid fa-arrow-up text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-2">
+                <p class="text-xs text-gray-400 dark:text-gray-500">Gemini may display inaccurate info, including about people, so double-check its responses.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-[#1e1f20] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-blue-500"></i> Settings & API Key
+                </h3>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center justify-between">
+                        <span>OpenRouter API Key</span>
+                        <a href="https://openrouter.ai/keys" target="_blank" class="text-xs text-blue-500 hover:underline">Get Key <i class="fa-solid fa-external-link-alt text-[10px]"></i></a>
+                    </label>
+                    <input type="password" id="api-key-input" placeholder="sk-or-v1-..." class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#282a2c] text-gray-800 dark:text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-sm">
+                    <p class="text-xs text-gray-500">Your key is stored locally in your browser and never sent anywhere else.</p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Model Name</label>
+                    <input type="text" id="model-name-input" value="google/gemini-2.5-flash" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#282a2c] text-gray-800 dark:text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-sm">
+                    <p class="text-xs text-gray-500">Any valid OpenRouter model slug (e.g., <code class="bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded">google/gemini-pro-1.5</code>, <code class="bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded">anthropic/claude-3.5-sonnet</code>).</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 dark:bg-[#131314] border-t border-gray-200 dark:border-gray-800">
+                <button onclick="closeSettings()" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#333537] transition">Cancel</button>
+                <button onclick="saveSettings()" class="px-5 py-2 rounded-xl text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Application State
+        let chats = JSON.parse(localStorage.getItem('gemini_chats')) || [];
+        let currentChatId = localStorage.getItem('gemini_current_chat_id') || null;
+        let apiKey = localStorage.getItem('gemini_openrouter_key') || '';
+        let modelName = localStorage.getItem('gemini_model_name') || 'google/gemini-2.5-flash';
+        let isGenerating = false;
+
+        // Initialize App on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Apply saved theme
+            const savedTheme = localStorage.getItem('gemini_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+            } else {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-moon';
+            }
+
+            // Sync settings inputs
+            document.getElementById('api-key-input').value = apiKey;
+            document.getElementById('model-name-input').value = modelName;
+            document.getElementById('current-model-badge').textContent = modelName;
+
+            updateApiStatusIndicator();
+
+            // Load chats or create initial chat
+            if (chats.length === 0) {
+                createNewChat();
+            } else {
+                if (!currentChatId || !chats.find(c => c.id === currentChatId)) {
+                    currentChatId = chats[0].id;
+                }
+                renderChatHistoryList();
+                loadCurrentChat();
+            }
+        });
+
+        // Toggle Sidebar on Mobile/Desktop
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                themeIcon.className = 'fa-solid fa-sun';
+                localStorage.setItem('gemini_theme', 'light');
+            } else {
+                html.classList.add('dark');
+                themeIcon.className = 'fa-solid fa-moon';
+                localStorage.setItem('gemini_theme', 'dark');
+            }
+        }
+
+        // Settings Modal Controls
+        function openSettings() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+        function saveSettings() {
+            apiKey = document.getElementById('api-key-input').value.trim();
+            modelName = document.getElementById('model-name-input').value.trim() || 'google/gemini-2.5-flash';
+            
+            localStorage.setItem('gemini_openrouter_key', apiKey);
+            localStorage.setItem('gemini_model_name', modelName);
+            localStorage.setItem('gemini_current_chat_id', currentChatId);
+
+            document.getElementById('current-model-badge').textContent = modelName;
+            updateApiStatusIndicator();
+            closeSettings();
+        }
+
+        function updateApiStatusIndicator() {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            if (apiKey) {
+                dot.className = 'w-2 h-2 rounded-full bg-green-500';
+                text.textContent = 'OpenRouter Connected';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+                text.textContent = 'API Key Required';
+            }
+        }
+
+        // Chat Management Functions
+        function createNewChat() {
+            const newChat = {
+                id: 'chat_' + Date.now(),
+                title: 'New Conversation',
+                messages: []
+            };
+            chats.unshift(newChat);
+            currentChatId = newChat.id;
+            saveChatsToStorage();
+            renderChatHistoryList();
+            loadCurrentChat();
+            if (window.innerWidth < 768) {
+                toggleSidebar();
+            }
+        }
+
+        function saveChatsToStorage() {
+            localStorage.setItem('gemini_chats', JSON.stringify(chats));
+            localStorage.setItem('gemini_current_chat_id', currentChatId);
+        }
+
+        function renderChatHistoryList() {
+            const listContainer = document.getElementById('chat-history-list');
+            let html = '<div class="text-xs font-semibold text-gray-500 dark:text-gray-400 px-3 py-2 uppercase tracking-wider">Recent Chats</div>';
+            
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const activeClass = isActive ? 'bg-gray-200 dark:bg-[#282a2c] text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-[#282a2c]/60';
+                
+                html += `
+                    <div class="group relative flex items-center justify-between rounded-lg px-3 py-2 text-sm transition cursor-pointer ${activeClass}" onclick="switchChat('${chat.id}')">
+                        <div class="flex items-center gap-3 truncate pr-12 flex-1">
+                            <i class="fa-regular fa-message text-gray-400 text-xs"></i>
+                            <span class="truncate">${escapeHTML(chat.title)}</span>
+                        </div>
+                        <div class="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition bg-inherit pl-2">
+                            <button onclick="event.stopPropagation(); renameChat('${chat.id}')" class="p-1 hover:text-blue-500 rounded" title="Rename"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button onclick="event.stopPropagation(); deleteChat('${chat.id}')" class="p-1 hover:text-red-500 rounded" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                `;
+            });
+            listContainer.innerHTML = html;
+        }
+
+        function switchChat(chatId) {
+            currentChatId = chatId;
+            saveChatsToStorage();
+            renderChatHistoryList();
+            loadCurrentChat();
+            if (window.innerWidth < 768) {
+                toggleSidebar();
+            }
+        }
+
+        function deleteChat(chatId) {
+            chats = chats.filter(c => c.id !== chatId);
+            if (chats.length === 0) {
+                createNewChat();
+            } else if (currentChatId === chatId) {
+                currentChatId = chats[0].id;
+            }
+            saveChatsToStorage();
+            renderChatHistoryList();
+            loadCurrentChat();
+        }
+
+        function renameChat(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+            const newTitle = prompt('Enter new chat title:', chat.title);
+            if (newTitle && newTitle.trim() !== '') {
+                chat.title = newTitle.trim();
+                saveChatsToStorage();
+                renderChatHistoryList();
+            }
+        }
+
+        function loadCurrentChat() {
+            const chat = chats.find(c => c.id === currentChatId);
+            const welcomeState = document.getElementById('welcome-state');
+            const messagesList = document.getElementById('messages-list');
+
+            if (!chat || chat.messages.length === 0) {
+                welcomeState.classList.remove('hidden');
+                messagesList.classList.add('hidden');
+                messagesList.innerHTML = '';
+                return;
+            }
+
+            welcomeState.classList.add('hidden');
+            messagesList.classList.remove('hidden');
+
+            let html = '';
+            chat.messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    html += `
+                        <div class="flex justify-end mb-4">
+                            <div class="bg-gray-200 dark:bg-[#282a2c] text-gray-800 dark:text-gray-100 px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-xl text-sm leading-relaxed shadow-sm">
+                                ${escapeHTML(msg.content)}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="flex items-start gap-4 mb-6">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shrink-0 shadow-sm mt-1">
+                                <i class="fa-solid fa-sparkles text-xs"></i>
+                            </div>
+                            <div class="flex-1 space-y-2 overflow-hidden">
+                                <div class="message-content text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
+                                    ${parseMarkdown(msg.content)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            messagesList.innerHTML = html;
+            hljs.highlightAll();
+            scrollToBottom();
+        }
+
+        // Prompt Actions
+        function sendPresetPrompt(text) {
+            document.getElementById('user-input').value = text;
+            autoResizeTextarea(document.getElementById('user-input'));
+            sendMessage();
+        }
+
+        function clearCurrentChatInput() {
+            document.getElementById('user-input').value = '';
+            autoResizeTextarea(document.getElementById('user-input'));
+        }
+
+        function autoResizeTextarea(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Main Message Sending & OpenRouter API Integration
+        async function sendMessage() {
+            if (isGenerating) return;
+            const inputEl = document.getElementById('user-input');
+            const promptText = inputEl.value.trim();
+            if (!promptText) return;
+
+            if (!apiKey) {
+                openSettings();
+                alertBox('Please enter your OpenRouter API Key in settings to start chatting.');
+                return;
+            }
+
+            inputEl.value = '';
+            autoResizeTextarea(inputEl);
+
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            // Update chat title if it's the first message
+            if (chat.messages.length === 0) {
+                chat.title = promptText.length > 30 ? promptText.substring(0, 30) + '...' : promptText;
+            }
+
+            // Push User Message
+            chat.messages.push({ role: 'user', content: promptText });
+            saveChatsToStorage();
+            renderChatHistoryList();
+            loadCurrentChat();
+
+            isGenerating = true;
+            document.getElementById('send-btn').disabled = true;
+
+            // Prepare AI placeholder message
+            const messagesList = document.getElementById('messages-list');
+            const aiMessageId = 'ai_msg_' + Date.now();
+            
+            const aiWrapper = document.createElement('div');
+            aiWrapper.className = 'flex items-start gap-4 mb-6';
+            aiWrapper.id = aiMessageId;
+            aiWrapper.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shrink-0 shadow-sm mt-1">
+                    <i class="fa-solid fa-sparkles text-xs"></i>
+                </div>
+                <div class="flex-1 space-y-2 overflow-hidden">
+                    <div class="message-content text-gray-800 dark:text-gray-200 text-sm leading-relaxed animate-pulse-slow">
+                        Thinking...
+                    </div>
+                </div>
+            `;
+            messagesList.appendChild(aiWrapper);
+            scrollToBottom();
+
+            // Format history for OpenRouter API
+            const apiMessages = chat.messages.map(m => ({
+                role: m.role,
+                content: m.content
+            }));
+
+            try {
+                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${apiKey}`,
+                        "HTTP-Referer": window.location.href,
+                        "X-Title": "Universal AI Chat Interface",
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: modelName,
+                        messages: apiMessages,
+                        stream: true
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let fullResponseText = "";
+                let accumulatedChunks = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    accumulatedChunks += decoder.decode(value, { stream: true });
+                    const lines = accumulatedChunks.split("\n");
+                    accumulatedChunks = lines.pop(); // Keep last incomplete line
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith("data:")) continue;
+                        const dataStr = trimmed.substring(5).trim();
+                        if (dataStr === "[DONE]") break;
+
+                        try {
+                            const parsed = JSON.parse(dataStr);
+                            const delta = parsed.choices[0]?.delta?.content || "";
+                            if (delta) {
+                                fullResponseText += delta;
+                                aiWrapper.querySelector('.message-content').innerHTML = parseMarkdown(fullResponseText);
+                                hljs.highlightAll();
+                                scrollToBottom();
+                            }
+                        } catch (e) {
+                            // Ignore parsing issues on partial chunks
+                        }
+                    }
+                }
+
+                // Push Assistant Message to history
+                chat.messages.push({ role: 'assistant', content: fullResponseText });
+                saveChatsToStorage();
+
+            } catch (error) {
+                console.error(error);
+                aiWrapper.querySelector('.message-content').innerHTML = `<span class="text-red-500 font-medium">Error: ${escapeHTML(error.message)}</span>`;
+            } finally {
+                isGenerating = false;
+                document.getElementById('send-btn').disabled = false;
+                loadCurrentChat();
+            }
+        }
+
+        // Markdown & HTML utilities
+        function parseMarkdown(text) {
+            if (!text) return '';
+            try {
+                return marked.parse(text);
+            } catch (e) {
+                return escapeHTML(text);
+            }
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function alertBox(message) {
+            alert(message); // Standard fallback alert for settings warning
+        }
+
+        function exportCurrentChat() {
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat || chat.messages.length === 0) {
+                alertBox('No messages to export in this chat.');
+                return;
+            }
+
+            let markdown = `# ${chat.title}\n\n`;
+            chat.messages.forEach(m => {
+                const role = m.role === 'user' ? '### Human' : '### Gemini AI';
+                markdown += `${role}\n${m.content}\n\n`;
+            });
+
+            const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${chat.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+```
